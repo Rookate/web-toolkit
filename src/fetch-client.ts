@@ -1,6 +1,11 @@
 export type SearchParamValue = string | number | boolean | null | undefined;
 export type SearchParams = Record<string, SearchParamValue | SearchParamValue[]>;
 
+/**
+ * How to parse a Response into a typed value.
+ * - Built-ins: 'json' | 'text' | 'blob' | 'arrayBuffer'
+ * - Custom: a function that takes the Response and returns the parsed value
+ */
 export type ResponseParser<T> =
   | 'json'
   | 'text'
@@ -12,37 +17,51 @@ export type SchemaLike<T> = { parse: (data: unknown) => T };
 export type Validator<T> = ((data: unknown) => T) | SchemaLike<T>;
 export type AnyValidator = Validator<unknown>;
 
+/**
+ * Retry policy applied to requests.
+ */
 export interface RetryOptions {
-  // Number of retry attempts after the initial try (2 => 3 total tries)
+  /** Number of retry attempts after the initial try (2 => 3 total tries). */
   retries: number;
-  // HTTP status codes that should be retried when response is not ok
+  /** HTTP status codes to retry when the response is not ok. */
   statusCodes: number[];
-  // Limit retries to specific HTTP methods (e.g., GET/HEAD by default)
+  /** Allowed HTTP methods for retry (uppercase). */
   methods: string[];
-  // Exponential backoff settings
-  factor: number; // growth factor per attempt
-  minDelay: number; // initial delay in ms
-  maxDelay: number; // cap delay in ms
-  jitter: number; // 0..1 percentage jitter
-  // Honor Retry-After header for 429/503 when present
+  /** Exponential backoff growth factor (e.g., 2). */
+  factor: number;
+  /** Initial backoff delay in milliseconds. */
+  minDelay: number;
+  /** Maximum backoff delay in milliseconds. */
+  maxDelay: number;
+  /** Jitter ratio (0..1) to randomize backoff. */
+  jitter: number;
+  /** Honor Retry-After header for 429/503 when present. */
   respectRetryAfterHeader: boolean;
 }
 
+/**
+ * Per-request options (extends RequestInit) to control parsing, retries, timeout, etc.
+ */
 export interface FetchRequestOptions extends RequestInit {
+  /** Extra query params to append/merge into the URL. */
   query?: SearchParams;
+  /** How to parse the response (defaults to 'json'). */
   parseAs?: ResponseParser<unknown>;
+  /** Throw on non-2xx/3xx responses (default true; set false to inspect manually). */
   throwOnHttpError?: boolean;
-  // Abort after X ms (applies to whole request including retries)
+  /** Abort after X ms (applies to the whole request including retries). */
   timeout?: number;
-  // Retry policy for this request. true uses defaults, number overrides retries count,
-  // object merges with defaults, false disables retries.
+  /** Retry policy for this request. true uses defaults, number sets retries, object merges, false disables. */
   retry?: boolean | number | Partial<RetryOptions>;
-  // Provide a JSON body and auto-set content-type header
+  /** Provide a JSON body; sets Content-Type if missing and defaults method to POST. */
   json?: unknown;
-  // Optional runtime validation of the parsed payload (e.g., Zod schema)
+  /** Optional validation of parsed payload (e.g., Zod schema with parse()). */
   validate?: AnyValidator;
 }
 
+/**
+ * Global configuration for a fetch client instance.
+ */
 export interface FetchClientConfig {
   baseUrl?: string;
   baseHeaders?: HeadersInit | (() => HeadersInit | Promise<HeadersInit>);
@@ -53,13 +72,14 @@ export interface FetchClientConfig {
   // Default timeout and retry policy (overridable per request)
   timeout?: number;
   retry?: boolean | number | Partial<RetryOptions>;
-  beforeRequest?: (
-    url: string,
-    init: RequestInit & { url: string }
-  ) => void | Promise<void>;
+  beforeRequest?: (url: string, init: RequestInit & { url: string }) => void | Promise<void>;
   afterResponse?: (response: Response) => void | Promise<void>;
 }
 
+/**
+ * Error thrown when an HTTP response is not ok and throwOnHttpError is enabled.
+ * Contains the original Response, status code, and a parsed payload (JSON or text when possible).
+ */
 export class FetchClientError extends Error {
   readonly response: Response;
   readonly status: number;
@@ -74,10 +94,14 @@ export class FetchClientError extends Error {
   }
 }
 
+/** Result type for safe helpers (no throw on HTTP). */
 export type FetchResult<T> =
   | { ok: true; data: T; response: Response }
   | { ok: false; error: unknown; response?: Response };
 
+/**
+ * A typed fetch client with convenient methods and safe helpers.
+ */
 export interface FetchClient {
   request(input: string | URL, options?: FetchRequestOptions): Promise<Response>;
   json<T = unknown>(input: string | URL, options?: FetchRequestOptions): Promise<T>;
@@ -86,20 +110,23 @@ export interface FetchClient {
   arrayBuffer(input: string | URL, options?: FetchRequestOptions): Promise<ArrayBuffer>;
   withConfig(overrides: Partial<FetchClientConfig>): FetchClient;
   // Safe result helpers (no throw on HTTP)
-  safeJson?<T = unknown>(input: string | URL, options?: FetchRequestOptions): Promise<FetchResult<T>>;
-  safeText?(input: string | URL, options?: FetchRequestOptions): Promise<FetchResult<string>>;
-  safeBlob?(input: string | URL, options?: FetchRequestOptions): Promise<FetchResult<Blob>>;
-  safeArrayBuffer?(input: string | URL, options?: FetchRequestOptions): Promise<FetchResult<ArrayBuffer>>;
+  safeJson<T = unknown>(
+    input: string | URL,
+    options?: FetchRequestOptions
+  ): Promise<FetchResult<T>>;
+  safeText(input: string | URL, options?: FetchRequestOptions): Promise<FetchResult<string>>;
+  safeBlob(input: string | URL, options?: FetchRequestOptions): Promise<FetchResult<Blob>>;
+  safeArrayBuffer(
+    input: string | URL,
+    options?: FetchRequestOptions
+  ): Promise<FetchResult<ArrayBuffer>>;
   // Convenience verbs (JSON by default)
-  get?<T = unknown>(input: string | URL, options?: FetchRequestOptions): Promise<T>;
-  post?<T = unknown>(input: string | URL, options?: FetchRequestOptions): Promise<T>;
-  put?<T = unknown>(input: string | URL, options?: FetchRequestOptions): Promise<T>;
-  patch?<T = unknown>(input: string | URL, options?: FetchRequestOptions): Promise<T>;
-  del?<T = unknown>(input: string | URL, options?: FetchRequestOptions): Promise<T>;
+  get<T = unknown>(input: string | URL, options?: FetchRequestOptions): Promise<T>;
+  post<T = unknown>(input: string | URL, options?: FetchRequestOptions): Promise<T>;
+  put<T = unknown>(input: string | URL, options?: FetchRequestOptions): Promise<T>;
+  patch<T = unknown>(input: string | URL, options?: FetchRequestOptions): Promise<T>;
+  del<T = unknown>(input: string | URL, options?: FetchRequestOptions): Promise<T>;
 }
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
 const toSearchParams = (params: SearchParams | undefined): URLSearchParams | undefined => {
   if (!params) {
@@ -160,8 +187,7 @@ const mergeHeaders = async (
   defaultHeaders: HeadersInit | undefined,
   requestHeaders: HeadersInit | undefined
 ): Promise<HeadersInit | undefined> => {
-  const initial =
-    typeof baseHeaders === 'function' ? await baseHeaders() : baseHeaders;
+  const initial = typeof baseHeaders === 'function' ? await baseHeaders() : baseHeaders;
 
   if (!initial && !defaultHeaders && !requestHeaders) {
     return undefined;
@@ -230,9 +256,7 @@ const parseErrorPayload = async (response: Response): Promise<unknown> => {
   }
 };
 
-const sanitizeRequestInit = (
-  requestOptions: FetchRequestOptions | undefined
-): RequestInit => {
+const sanitizeRequestInit = (requestOptions: FetchRequestOptions | undefined): RequestInit => {
   if (!requestOptions) {
     return {};
   }
@@ -245,8 +269,7 @@ const sanitizeRequestInit = (
     retry: _retry,
     json: _json,
     ...rest
-  } =
-    requestOptions;
+  } = requestOptions;
 
   return rest;
 };
@@ -261,6 +284,13 @@ const mergeRequestInit = (
   headers
 });
 
+/**
+ * Create a fetch client.
+ * - baseUrl: prepended to relative inputs
+ * - baseHeaders: shared headers (sync or async), merged with per-call headers
+ * - defaultQuery: merged into every request's querystring
+ * - timeout/retry: defaults applied unless overridden per call
+ */
 export const createFetchClient = (config: FetchClientConfig = {}): FetchClient => {
   const {
     baseUrl,
@@ -336,7 +366,9 @@ export const createFetchClient = (config: FetchClientConfig = {}): FetchClient =
   const isAbortError = (err: unknown): boolean => {
     return (
       (err as any)?.name === 'AbortError' ||
-      (typeof DOMException !== 'undefined' && err instanceof DOMException && err.name === 'AbortError')
+      (typeof DOMException !== 'undefined' &&
+        err instanceof DOMException &&
+        err.name === 'AbortError')
     );
   };
 
@@ -382,7 +414,10 @@ export const createFetchClient = (config: FetchClientConfig = {}): FetchClient =
     }
 
     const { signal: userSignal } = init;
-    const { signal, cleanup } = composeSignal((userSignal ?? undefined) as AbortSignal | undefined, effectiveTimeout ?? defaultTimeout);
+    const { signal, cleanup } = composeSignal(
+      (userSignal ?? undefined) as AbortSignal | undefined,
+      effectiveTimeout ?? defaultTimeout
+    );
     const baseInit = { ...init, signal };
 
     let lastError: unknown;
@@ -403,7 +438,9 @@ export const createFetchClient = (config: FetchClientConfig = {}): FetchClient =
           const code = res.status;
           const shouldRetry = retryPolicy.statusCodes.includes(code);
           if (shouldRetry && attempt < totalAttempts) {
-            const retryAfter = retryPolicy.respectRetryAfterHeader ? parseRetryAfter(res) : undefined;
+            const retryAfter = retryPolicy.respectRetryAfterHeader
+              ? parseRetryAfter(res)
+              : undefined;
             const delay = retryAfter ?? backoffDelay(attempt, retryPolicy);
             await sleep(delay, (baseInit.signal ?? undefined) as AbortSignal | undefined);
             continue;
@@ -465,11 +502,15 @@ export const createFetchClient = (config: FetchClientConfig = {}): FetchClient =
       );
     }
 
-    const parsed = await parseResponse(response, (parser ?? options?.parseAs) as ResponseParser<T> | undefined);
+    const parsed = await parseResponse(
+      response,
+      (parser ?? options?.parseAs) as ResponseParser<T> | undefined
+    );
     const v = options?.validate as Validator<T> | undefined;
     if (!v) return parsed as T;
     if (typeof v === 'function') return v(parsed as unknown) as T;
-    if (v && typeof (v as any).parse === 'function') return (v as SchemaLike<T>).parse(parsed as unknown);
+    if (v && typeof (v as any).parse === 'function')
+      return (v as SchemaLike<T>).parse(parsed as unknown);
     return parsed as T;
   };
 
@@ -524,7 +565,10 @@ export const createFetchClient = (config: FetchClientConfig = {}): FetchClient =
           response: res
         };
       }
-      const parsed = await parseResponse(res, (parser ?? options?.parseAs) as ResponseParser<T> | undefined);
+      const parsed = await parseResponse(
+        res,
+        (parser ?? options?.parseAs) as ResponseParser<T> | undefined
+      );
       const v = options?.validate as Validator<T> | undefined;
       const data = !v
         ? (parsed as T)
@@ -538,10 +582,16 @@ export const createFetchClient = (config: FetchClientConfig = {}): FetchClient =
   };
 
   const client: FetchClient & {
-    safeJson<T = unknown>(input: string | URL, options?: FetchRequestOptions): Promise<FetchResult<T>>;
+    safeJson<T = unknown>(
+      input: string | URL,
+      options?: FetchRequestOptions
+    ): Promise<FetchResult<T>>;
     safeText(input: string | URL, options?: FetchRequestOptions): Promise<FetchResult<string>>;
     safeBlob(input: string | URL, options?: FetchRequestOptions): Promise<FetchResult<Blob>>;
-    safeArrayBuffer(input: string | URL, options?: FetchRequestOptions): Promise<FetchResult<ArrayBuffer>>;
+    safeArrayBuffer(
+      input: string | URL,
+      options?: FetchRequestOptions
+    ): Promise<FetchResult<ArrayBuffer>>;
     get<T = unknown>(input: string | URL, options?: FetchRequestOptions): Promise<T>;
     post<T = unknown>(input: string | URL, options?: FetchRequestOptions): Promise<T>;
     put<T = unknown>(input: string | URL, options?: FetchRequestOptions): Promise<T>;
@@ -558,7 +608,8 @@ export const createFetchClient = (config: FetchClientConfig = {}): FetchClient =
     safeBlob: (input, options) => safe(input, options, 'blob'),
     safeArrayBuffer: (input, options) => safe(input, options, 'arrayBuffer'),
     get: (input, options) => fetcher(input, { ...options, method: 'GET' }, 'json'),
-    post: (input, options) => fetcher(input, { ...options, method: options?.method ?? 'POST' }, 'json'),
+    post: (input, options) =>
+      fetcher(input, { ...options, method: options?.method ?? 'POST' }, 'json'),
     put: (input, options) => fetcher(input, { ...options, method: 'PUT' }, 'json'),
     patch: (input, options) => fetcher(input, { ...options, method: 'PATCH' }, 'json'),
     del: (input, options) => fetcher(input, { ...options, method: 'DELETE' }, 'json'),
@@ -580,6 +631,9 @@ export const createFetchClient = (config: FetchClientConfig = {}): FetchClient =
   return client;
 };
 
+/**
+ * Shortcut to create a JSON-only fetcher function with the same config.
+ */
 export const createJsonFetcher = (
   config: FetchClientConfig = {}
 ): (<T = unknown>(input: string | URL, options?: FetchRequestOptions) => Promise<T>) => {
@@ -587,5 +641,6 @@ export const createJsonFetcher = (
   return client.json;
 };
 
+/** Type guard for FetchClientError. */
 export const isFetchClientError = (error: unknown): error is FetchClientError =>
   error instanceof FetchClientError;

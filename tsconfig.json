@@ -9,23 +9,14 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
-    "lib": [
-      "ES2021",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2021", "DOM", "DOM.Iterable"],
     "moduleDetection": "force",
     "noEmitOnError": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
-    "types": []
+    "types": ["vitest/globals", "@types/node"]
   },
-  "include": [
-    "src"
-  ],
-  "exclude": [
-    "dist",
-    "node_modules"
-  ]
+  "include": ["src"],
+  "exclude": ["dist", "node_modules"]
 }

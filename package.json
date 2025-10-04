@@ -19,7 +19,14 @@
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts",
     "dev": "tsup src/index.ts --watch --format esm,cjs --dts",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint . --ext .ts,.tsx,.js,.cjs,.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:ci": "vitest run --coverage=false"
   },
   "keywords": [
     "nextjs",
@@ -32,8 +39,14 @@
   "peerDependencies": {},
   "peerDependenciesMeta": {},
   "devDependencies": {
+    "@types/node": "^20.14.9",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.3",
     "tsup": "^8.0.2",
-    "typescript": "^5.4.5"
+    "typescript": "5.5.4",
+    "vitest": "^1.6.0"
   },
   "publishConfig": {
     "access": "public"

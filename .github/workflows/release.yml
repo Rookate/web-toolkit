@@ -27,8 +27,12 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Build
-        run: npm run build
+      - name: Lint, typecheck and test
+        run: |
+          npm run build
+          npm run typecheck
+          npm run lint
+          npm run test:ci
 
       - name: Ensure tag matches package version
         shell: bash
@@ -44,4 +48,3 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish
-
