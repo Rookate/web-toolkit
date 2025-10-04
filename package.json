@@ -26,7 +26,11 @@
     "format:check": "prettier --check .",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:ci": "vitest run --coverage=false"
+    "test:ci": "vitest run --coverage=false",
+    "preflight": "npm run typecheck && npm run lint && npm run test:ci && npm run build",
+    "release:patch": "npm run preflight && npm version patch -m 'chore: release v%s' && git push && git push --tags",
+    "release:minor": "npm run preflight && npm version minor -m 'chore: release v%s' && git push && git push --tags",
+    "release:major": "npm run preflight && npm version major -m 'chore: release v%s' && git push && git push --tags"
   },
   "keywords": [
     "nextjs",
